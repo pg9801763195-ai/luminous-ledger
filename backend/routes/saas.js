@@ -4,6 +4,7 @@ const {
   getTenants, 
   createTenant, 
   updateTenant, 
+  deleteTenant,
   impersonateUser,
   getSystemLogs,
   getSystemAnalytics,
@@ -21,7 +22,8 @@ router.route('/tenants')
   .post(createTenant);
 
 router.route('/tenants/:id')
-  .put(updateTenant);
+  .put(updateTenant)
+  .delete(deleteTenant);
 
 router.route('/impersonate/:userId')
   .post(impersonateUser);

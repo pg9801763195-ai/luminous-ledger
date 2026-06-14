@@ -56,8 +56,10 @@ exports.getTenants = async (req, res) => {
 // @route   POST /api/saas/tenants
 // @access  Private/SuperAdmin
 exports.createTenant = async (req, res) => {
+  let createdTenant = null;
+  let createdUser = null;
   try {
-    const { name, slug, plan, adminName, adminEmail, adminPassword } = req.body;
+    const { name, slug, plan, adminName, adminEmail, adminPassword, gstin } = req.body;
     const finalName = name && name.trim() ? name.trim() : 'Default Retail Store';
 
     if (!slug || !adminName || !adminEmail || !adminPassword) {
@@ -77,7 +79,7 @@ exports.createTenant = async (req, res) => {
     }
 
     // Create the Tenant
-    const tenant = await Tenant.create({
+    createdTenant = await Tenant.create({
       name: finalName,
       slug: slug.toLowerCase(),
       plan: plan || 'Basic',
@@ -85,23 +87,23 @@ exports.createTenant = async (req, res) => {
     });
 
     // Create the Admin User
-    const adminUser = await User.create({
+    createdUser = await User.create({
       name: adminName,
       email: adminEmail.toLowerCase(),
       password: adminPassword,
       role: 'Admin',
-      tenant: tenant._id,
+      tenant: createdTenant._id,
     });
 
     // Create default ShopProfile for the tenant
     await ShopProfile.create({
       name: finalName,
       logo: '',
-      gstin: '',
+      gstin: gstin ? gstin.trim() : '',
       address: '',
       email: adminEmail,
       phone: '',
-      tenant: tenant._id,
+      tenant: createdTenant._id,
     });
 
     // Log the tenant creation
@@ -116,16 +118,30 @@ exports.createTenant = async (req, res) => {
       success: true,
       message: 'Tenant and Admin user created successfully',
       data: {
-        tenant,
+        tenant: createdTenant,
         admin: {
-          id: adminUser._id,
-          name: adminUser.name,
-          email: adminUser.email,
+          id: createdUser._id,
+          name: createdUser.name,
+          email: createdUser.email,
         },
       },
     });
   } catch (error) {
     console.error('Error creating tenant:', error);
+
+    // Rollback any successfully created documents to prevent orphan/partial records
+    try {
+      if (createdUser) {
+        await User.deleteOne({ _id: createdUser._id });
+      }
+      if (createdTenant) {
+        await Tenant.deleteOne({ _id: createdTenant._id });
+        await ShopProfile.deleteMany({ tenant: createdTenant._id });
+      }
+    } catch (rollbackError) {
+      console.error('Failed to rollback tenant creation:', rollbackError);
+    }
+
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -384,6 +400,61 @@ exports.updateSystemConfig = async (req, res) => {
     res.status(200).json({ success: true, message: 'System configuration updated successfully', data: config });
   } catch (error) {
     console.error('Error updating system config:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Delete a tenant completely (all data)
+// @route   DELETE /api/saas/tenants/:id
+// @access  Private/SuperAdmin
+exports.deleteTenant = async (req, res) => {
+  try {
+    const tenantId = req.params.id;
+
+    // Find the tenant to verify existence
+    const tenant = await Tenant.findById(tenantId);
+    if (!tenant) {
+      return res.status(404).json({ success: false, message: 'Tenant not found' });
+    }
+
+    // Require other models locally
+    const Customer = require('../models/Customer');
+    const Supplier = require('../models/Supplier');
+    const Transaction = require('../models/Transaction');
+    const InventoryLog = require('../models/InventoryLog');
+    const Notification = require('../models/Notification');
+    const Coupon = require('../models/Coupon');
+
+    // 1. Delete all resources related to this tenant
+    await Promise.all([
+      User.deleteMany({ tenant: tenantId }),
+      Product.deleteMany({ tenant: tenantId }),
+      Customer.deleteMany({ tenant: tenantId }),
+      Supplier.deleteMany({ tenant: tenantId }),
+      Invoice.deleteMany({ tenant: tenantId }),
+      Transaction.deleteMany({ tenant: tenantId }),
+      InventoryLog.deleteMany({ tenant: tenantId }),
+      Notification.deleteMany({ tenant: tenantId }),
+      Coupon.deleteMany({ tenant: tenantId }),
+      ShopProfile.deleteMany({ tenant: tenantId }),
+      ActivityLog.deleteMany({ tenant: tenantId }),
+      Tenant.deleteOne({ _id: tenantId }),
+    ]);
+
+    // 2. Log SuperAdmin delete tenant activity (system level)
+    await logActivity(
+      req.user._id,
+      'DELETE_TENANT',
+      `SuperAdmin deleted tenant ${tenant.name} (${tenant.slug}) and all associated records`,
+      req
+    );
+
+    res.status(200).json({
+      success: true,
+      message: `Tenant "${tenant.name}" and all associated data have been permanently deleted`,
+    });
+  } catch (error) {
+    console.error('Error deleting tenant:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

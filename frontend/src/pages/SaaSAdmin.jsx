@@ -29,6 +29,7 @@ const SaaSAdmin = () => {
     adminName: '',
     adminEmail: '',
     adminPassword: '',
+    gstin: '',
   });
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -42,6 +43,26 @@ const SaaSAdmin = () => {
   });
   const [editError, setEditError] = useState('');
   const [updating, setUpdating] = useState(false);
+
+  // Delete tenant states
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [tenantToDelete, setTenantToDelete] = useState(null);
+  const [deleteTimer, setDeleteTimer] = useState(10);
+  const [deleteConfirmInput, setDeleteConfirmInput] = useState('');
+  const [deletingTenant, setDeletingTenant] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+
+  useEffect(() => {
+    let interval = null;
+    if (showDeleteModal && deleteTimer > 0) {
+      interval = setInterval(() => {
+        setDeleteTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [showDeleteModal, deleteTimer]);
 
   // Analytics tab states
   const [analytics, setAnalytics] = useState(null);
@@ -175,6 +196,7 @@ const SaaSAdmin = () => {
           adminName: '',
           adminEmail: '',
           adminPassword: '',
+          gstin: '',
         });
         fetchTenants();
       }
@@ -239,6 +261,36 @@ const SaaSAdmin = () => {
       setEditError(error.response?.data?.message || 'Failed to update store');
     } finally {
       setUpdating(false);
+    }
+  };  const handleOpenDeleteModal = (tenant) => {
+    setTenantToDelete(tenant);
+    setDeleteTimer(10);
+    setDeleteConfirmInput('');
+    setDeleteError('');
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteTenant = async (e) => {
+    e.preventDefault();
+    if (deleteTimer > 0) return;
+    if (deleteConfirmInput.toLowerCase() !== tenantToDelete.slug.toLowerCase()) {
+      setDeleteError(`Please type "${tenantToDelete.slug}" exactly to confirm deletion`);
+      return;
+    }
+
+    setDeleteError('');
+    setDeletingTenant(true);
+
+    try {
+      const res = await api.delete(`/saas/tenants/${tenantToDelete._id}`);
+      if (res.data.success) {
+        setShowDeleteModal(false);
+        fetchTenants();
+      }
+    } catch (error) {
+      setDeleteError(error.response?.data?.message || 'Failed to delete store');
+    } finally {
+      setDeletingTenant(false);
     }
   };
 
@@ -527,6 +579,13 @@ const SaaSAdmin = () => {
                                 }`}
                               >
                                 {tenant.status === 'Active' ? 'Suspend' : 'Activate'}
+                              </button>
+                              <button
+                                onClick={() => handleOpenDeleteModal(tenant)}
+                                className="px-sm h-8 border border-red-200 hover:bg-red-50 text-xs text-[#ba1a1a] font-semibold rounded flex items-center gap-xs"
+                              >
+                                <span className="material-symbols-outlined text-[16px]">delete</span>
+                                Delete
                               </button>
                             </div>
                           </td>
@@ -1028,6 +1087,17 @@ const SaaSAdmin = () => {
                   />
                 </div>
 
+                <div className="space-y-xs">
+                  <label className="text-xs font-bold text-[#434656] px-1">GSTIN (GST Number)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 27AAAAA1111A1Z1"
+                    className="w-full h-11 px-3 border border-[#c3c5d9] rounded-lg outline-none focus:border-[#0041c8] transition-all text-sm font-mono"
+                    value={formData.gstin}
+                    onChange={(e) => setFormData({ ...formData, gstin: e.target.value })}
+                  />
+                </div>
+
                 <div className="grid grid-cols-2 gap-md">
                   <div className="space-y-xs">
                     <label className="text-xs font-bold text-[#434656] px-1">Subdomain / Slug *</label>
@@ -1181,6 +1251,81 @@ const SaaSAdmin = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE TENANT WARNING MODAL */}
+      {showDeleteModal && tenantToDelete && (
+        <div className="fixed inset-0 z-50 bg-[#131b2e]/60 backdrop-blur-sm flex items-center justify-center p-lg">
+          <div className="bg-white rounded-xl max-w-md w-full p-2xl shadow-2xl glass-panel relative border border-red-200 max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <h3 className="font-bold text-headline-md text-red-600 mb-md flex items-center gap-sm">
+              <span className="material-symbols-outlined text-red-600 text-[28px]">warning</span>
+              Danger: Delete Store
+            </h3>
+
+            {deleteError && (
+              <div className="p-md bg-red-50 border border-red-200 text-[#ba1a1a] rounded-lg text-xs font-semibold mb-md flex items-center gap-xs">
+                <span className="material-symbols-outlined text-[18px]">error</span>
+                {deleteError}
+              </div>
+            )}
+
+            <div className="space-y-md text-left text-xs mb-lg">
+              <p className="text-[#434656] font-medium leading-relaxed">
+                You are about to delete store <strong className="text-[#131b2e] font-bold">"{tenantToDelete.name}"</strong> (Slug: <span className="font-mono text-[#0041c8] font-bold">{tenantToDelete.slug}</span>).
+              </p>
+              
+              <div className="p-md bg-red-50 border border-red-200 rounded-lg text-[#ba1a1a] font-semibold space-y-xs">
+                <p className="flex items-center gap-xs text-[10px] uppercase tracking-wider">
+                  <span className="material-symbols-outlined text-[16px]">gavel</span>
+                  Critical Warning:
+                </p>
+                <p className="leading-relaxed">
+                  This action is <strong className="underline">permanent</strong>. All staff members, products, coupons, customers, inventory logs, receipts, and invoices belonging to this store will be completely and irreversibly purged from the system.
+                </p>
+              </div>
+
+              <div className="space-y-xs pt-xs">
+                <label className="text-[11px] font-bold text-[#434656] block">
+                  To confirm, type the subdomain slug <strong className="font-mono text-[#0041c8] font-bold">"{tenantToDelete.slug}"</strong> below:
+                </label>
+                <input
+                  type="text"
+                  placeholder="Type slug here..."
+                  className="w-full h-10 px-3 border border-[#c3c5d9] bg-white rounded-lg outline-none focus:border-red-600 font-mono text-sm"
+                  value={deleteConfirmInput}
+                  onChange={(e) => setDeleteConfirmInput(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Modal Buttons */}
+            <div className="flex gap-md pt-lg border-t border-[#c3c5d9]/20">
+              <button
+                type="button"
+                onClick={handleDeleteTenant}
+                disabled={deletingTenant || deleteTimer > 0 || deleteConfirmInput.toLowerCase() !== tenantToDelete.slug.toLowerCase()}
+                className={`flex-grow h-11 text-white font-semibold rounded-lg flex items-center justify-center shadow-md active:scale-95 transition-all text-xs font-bold ${
+                  deletingTenant || deleteTimer > 0 || deleteConfirmInput.toLowerCase() !== tenantToDelete.slug.toLowerCase()
+                    ? 'bg-red-400 opacity-50 cursor-not-allowed'
+                    : 'bg-red-600 hover:bg-red-700'
+                }`}
+              >
+                {deletingTenant 
+                  ? 'Purging data...' 
+                  : deleteTimer > 0 
+                    ? `Wait ${deleteTimer}s to unlock` 
+                    : 'Yes, Delete Completely'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+                className="h-11 px-4 border border-[#c3c5d9] hover:bg-[#dae2fd]/40 text-[#434656] font-semibold rounded-lg active:scale-95 transition-all text-xs"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}

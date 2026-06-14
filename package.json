@@ -1,5 +1,5 @@
 {
-  "name": "stitch-saas-retail-management-suite",
+  "name": "luminous-ledger",
   "version": "1.0.0",
   "description": "SaaS Retail Management & Billing System",
   "scripts": {
@@ -13,5 +13,8 @@
   "dependencies": {},
   "devDependencies": {
     "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
   }
 }
