@@ -1,0 +1,22 @@
+# SaaS Billing & Inventory Management System - PRD
+
+## Core Screens to Generate:
+1. **Login Page**: Clean, professional entry point with brand logo and JWT-ready fields.
+2. **Admin Dashboard**: Comprehensive overview with sales graphs (Chart.js style), revenue stats, and stock alerts.
+3. **POS Billing Interface**: Optimized Point of Sale with product search, cart, and multi-payment options.
+4. **Product Management**: Data table with filtering, search, and "Add Product" functionality.
+5. **Inventory Management**: Stock tracking, low-stock alerts, and audit logs.
+6. **Customer Management**: Profile views with purchase history and loyalty points.
+7. **Reports Module**: Visual data summaries for sales, GST, and P&L.
+8. **Settings & AI Analytics**: Business config and predictive trends.
+
+## Tech Stack (UI Representation):
+- React + Tailwind CSS
+- Chart.js for data visualization
+- Glassmorphism effects
+- Sidebar-based navigation
+
+## User Roles:
+- Admin (Full Access)
+- Manager (Inventory, Customers, Reports)
+- Cashier (Billing only)

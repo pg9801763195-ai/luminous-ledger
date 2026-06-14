@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: shree-shyam-saawariya-suite
+    env: node
+    plan: free
+    buildCommand: npm run install-all && npm run build
+    startCommand: npm start --prefix backend
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: JWT_SECRET
+        generateValue: true
+      - key: MONGODB_URI
+        placeholder: "Enter your MongoDB Atlas Connection URI string"
