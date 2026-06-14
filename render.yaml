@@ -1,9 +1,9 @@
 services:
   - type: web
-    name: shree-shyam-saawariya-suite
+    name: luminous-ledger
     env: node
     plan: free
-    buildCommand: npm run install-all && npm run build
+    buildCommand: NODE_ENV=development npm run install-all && npm run build
     startCommand: npm start --prefix backend
     envVars:
       - key: NODE_ENV
@@ -13,4 +13,4 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: MONGODB_URI
-        placeholder: "Enter your MongoDB Atlas Connection URI string"
+        sync: false
