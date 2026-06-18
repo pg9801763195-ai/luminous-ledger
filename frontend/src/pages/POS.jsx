@@ -397,10 +397,22 @@ const POS = () => {
         }
         
         iframe.src = url;
-        iframe.onload = () => {
-          iframe.contentWindow.focus();
-          iframe.contentWindow.print();
+        
+        let hasPrinted = false;
+        const doPrint = () => {
+          if (hasPrinted) return;
+          hasPrinted = true;
+          try {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+          } catch (e) {
+            console.error('Failed to print PDF from iframe:', e);
+          }
         };
+
+        iframe.onload = doPrint;
+        // Fallback for browsers (like Chrome) where onload does not fire for PDF blobs in iframes
+        setTimeout(doPrint, 500);
       })
       .catch((err) => {
         console.error('Failed to print invoice PDF', err);
