@@ -4,10 +4,11 @@ const jwt = require('jsonwebtoken');
 const { logActivity } = require('../middleware/auth');
 const { recordLoginFailure, recordLoginSuccess } = require('../middleware/rateLimiter');
 const SystemConfig = require('../models/SystemConfig');
+const JWT_SECRET = require('../config/jwt');
 
 // Generate JWT Token
 const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET || 'super_secret_luminous_key_12345_67890', {
+  return jwt.sign({ id }, JWT_SECRET, {
     expiresIn: '30d',
   });
 };

@@ -34,11 +34,13 @@ const autoSeedSuperAdmin = async () => {
         });
       }
 
+      const initialPassword = process.env.INITIAL_SUPERADMIN_PASSWORD || 'superadmin123';
+
       // 2. Create the default SuperAdmin user
       await User.create({
         name: 'SaaS Administrator',
         email: 'superadmin@luminous.com',
-        password: 'superadmin123',
+        password: initialPassword,
         role: 'SuperAdmin',
         active: true,
       });

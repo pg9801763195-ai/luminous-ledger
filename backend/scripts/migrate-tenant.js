@@ -46,14 +46,15 @@ const migrate = async () => {
     let superAdmin = await User.findOne({ email: superAdminEmail });
     if (!superAdmin) {
       console.log('Creating SuperAdmin user...');
+      const initialPassword = process.env.INITIAL_SUPERADMIN_PASSWORD || 'superadmin123';
       superAdmin = await User.create({
         name: 'SaaS Administrator',
         email: superAdminEmail,
-        password: 'superadmin123',
+        password: initialPassword,
         role: 'SuperAdmin',
         active: true,
       });
-      console.log('SuperAdmin user created! Log in with superadmin@luminous.com / superadmin123');
+      console.log(`SuperAdmin user created! Log in with superadmin@luminous.com`);
     } else {
       // Ensure role is SuperAdmin
       if (superAdmin.role !== 'SuperAdmin') {

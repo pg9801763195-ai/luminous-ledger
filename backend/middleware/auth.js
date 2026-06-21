@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const ActivityLog = require('../models/ActivityLog');
+const JWT_SECRET = require('../config/jwt');
 
 // In-memory cache to throttle tenant lookup queries (TTL: 10s)
 const tenantStatusCache = new Map();
@@ -18,7 +19,7 @@ const protect = async (req, res, next) => {
       token = req.headers.authorization.split(' ')[1];
 
       // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'super_secret_luminous_key_12345_67890');
+      const decoded = jwt.verify(token, JWT_SECRET);
 
       // Get user from the token, exclude password
       req.user = await User.findById(decoded.id).select('-password');

@@ -7,6 +7,7 @@ const jwt = require('jsonwebtoken');
 const { logActivity } = require('../middleware/auth');
 const ActivityLog = require('../models/ActivityLog');
 const SystemConfig = require('../models/SystemConfig');
+const JWT_SECRET = require('../config/jwt');
 
 // @desc    Get all tenants with stats & user list
 // @route   GET /api/saas/tenants
@@ -215,7 +216,7 @@ exports.impersonateUser = async (req, res) => {
         id: targetUser._id,
         impersonatorId: req.user._id,
       },
-      process.env.JWT_SECRET || 'super_secret_luminous_key_12345_67890',
+      JWT_SECRET,
       { expiresIn: '1h' }
     );
 

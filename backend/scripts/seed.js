@@ -38,10 +38,12 @@ const seedDB = async () => {
 
     // 1. Seed Staff Users
     console.log('Seeding staff users...');
+    const defaultStaffPassword = process.env.SEED_PASSWORD || 'password123';
+
     const admin = await User.create({
       name: 'Alex Morgan',
       email: 'admin@luminous.com',
-      password: 'password123', // encrypted via Pre-save hook
+      password: defaultStaffPassword, // encrypted via Pre-save hook
       role: 'Admin',
       active: true,
     });
@@ -49,7 +51,7 @@ const seedDB = async () => {
     const manager = await User.create({
       name: 'Sarah Connor',
       email: 'manager@luminous.com',
-      password: 'password123',
+      password: defaultStaffPassword,
       role: 'Manager',
       active: true,
     });
@@ -57,7 +59,7 @@ const seedDB = async () => {
     const cashier = await User.create({
       name: 'John Doe',
       email: 'cashier@luminous.com',
-      password: 'password123',
+      password: defaultStaffPassword,
       role: 'Cashier',
       active: true,
     });
