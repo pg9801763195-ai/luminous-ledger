@@ -36,6 +36,12 @@ const Settings = () => {
   const [logSearch, setLogSearch] = useState('');
   const [logAction, setLogAction] = useState('');
 
+  // Legal & compliance modal states
+  const [legalModal, setLegalModal] = useState({ show: false, title: '', content: '' });
+  const openLegalModal = (title, content) => {
+    setLegalModal({ show: true, title, content });
+  };
+
   const fetchStaff = async () => {
     try {
       setStaffLoading(true);
@@ -590,6 +596,39 @@ const Settings = () => {
         </div>
       </div>
 
+      {/* Legal & Compliance Disclosures */}
+      <div className="glass-panel rounded-xl p-md flex flex-col md:flex-row items-center justify-between text-xs text-[#737688] mt-lg gap-sm border border-[#c3c5d9]/30 bg-white/40">
+        <span className="flex items-center gap-xs">
+          <span className="material-symbols-outlined text-[16px] text-[#737688]">verified_user</span>
+          Luminous Ledger Legal Shield. Under commercial terms of service.
+        </span>
+        <div className="flex gap-md font-semibold text-[#0041c8]">
+          <button 
+            type="button"
+            onClick={() => openLegalModal("Terms of Service", "Welcome to Luminous Ledger. By accessing or using our SaaS platform, you agree to these terms:\n\n1. Commercial Usage Only: This platform is designed solely for retail management and billing. You agree to use it only for legitimate business operations.\n2. Security Obligations: You are responsible for keeping your login credentials confidential. Sharing of accounts is prohibited.\n3. Prohibited Conduct: You agree not to perform reverse engineering, vulnerability scanning, security probing, or spamming of any API endpoints.\n4. Limitation of Liability: We do not guarantee uninterrupted system access. Under no circumstances shall Luminous Ledger be liable for calculations discrepancies, tax calculation errors, retail data loss, or server downtime. Rate limit locks do not constitute a breach of service.")} 
+            className="hover:underline hover:text-[#0031a0]"
+          >
+            Terms of Service
+          </button>
+          <span>•</span>
+          <button 
+            type="button"
+            onClick={() => openLegalModal("Privacy Policy", "This Privacy Policy discloses the operational data practices of Luminous Ledger:\n\n1. Data Points Collected:\n• Work Emails & Hashed Passwords for staff authentication.\n• Full Names of staff users for audit logs.\n• Shop Profiles (Subdomain, Shop Name, GSTIN, Address, Phone, Logo).\n• Transaction & Billing records (Invoices, payment categories, quantities, amounts, dates).\n• Security & Access Logs (IP addresses logged for rate-limiting protection and administrative audit trails).\n\n2. Usage: All collected data is used exclusively to facilitate retail POS operations and secure the platform. We do not sell or monetize your store metrics.\n3. Security & Compliance: Passwords are encrypted using bcrypt hashing prior to database storage.")} 
+            className="hover:underline hover:text-[#0031a0]"
+          >
+            Privacy Policy
+          </button>
+          <span>•</span>
+          <button 
+            type="button"
+            onClick={() => openLegalModal("Compliance & Data Disclosures", "Luminous Ledger Data Declaration:\n\n1. Active Data Declarations:\n• Geolocation: The platform does not track active geolocation data of users.\n• Photos & Media: Only shop logo image uploads are accepted; no other photo access is requested.\n• System Auditing: Administrative operations (creating products, registering staff, deleting records, adjusting inventory) are logged alongside the operator's IP address to comply with business audits.\n• Rate Limiting: Failed auth attempts log temporary lock keys using MongoDB TTL index records. They expire automatically in 10 minutes.\n\n2. Service Compliances:\n• Tax Disclosures: Shop Profile inputs include store GSTIN fields synced onto POS billing headers to comply with national billing guidelines.")} 
+            className="hover:underline hover:text-[#0031a0]"
+          >
+            Compliance & Data Disclosures
+          </button>
+        </div>
+      </div>
+
       {/* CREATE/EDIT STAFF CREDENTIALS MODAL */}
       {showStaffModal && (
         <div class="fixed inset-0 z-50 bg-[#131b2e]/60 backdrop-blur-sm flex items-center justify-center p-lg animate-fade-in">
@@ -793,6 +832,27 @@ const Settings = () => {
               type="button"
               onClick={() => setShowPlanModal(false)}
               className="w-full h-11 bg-[#0041c8] text-white hover:opacity-90 font-bold rounded-lg shadow-md transition-all cursor-pointer"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* LEGAL MODAL */}
+      {legalModal.show && (
+        <div className="fixed inset-0 z-50 bg-[#131b2e]/40 backdrop-blur-sm flex items-center justify-center p-6 animate-fade-in select-none">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-[#c3c5d9]/40 space-y-4 max-h-[85vh] overflow-y-auto custom-scrollbar">
+            <h3 className="text-lg font-bold text-[#0041c8] flex items-center gap-2 border-b border-[#c3c5d9]/20 pb-3">
+              <span className="material-symbols-outlined text-[#0041c8]">shield</span>
+              {legalModal.title}
+            </h3>
+            <p className="text-sm text-[#434656] whitespace-pre-line leading-relaxed">
+              {legalModal.content}
+            </p>
+            <button
+              onClick={() => setLegalModal({ show: false, title: '', content: '' })}
+              className="w-full h-11 bg-[#0041c8] hover:bg-[#0031a0] text-white font-semibold rounded-xl shadow-md transition-all active:scale-95 mt-4"
             >
               Close
             </button>
