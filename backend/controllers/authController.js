@@ -2,7 +2,7 @@ const User = require('../models/User');
 const Tenant = require('../models/Tenant');
 const jwt = require('jsonwebtoken');
 const { logActivity } = require('../middleware/auth');
-const { registerLoginSuccess, registerLoginFailure } = require('../middleware/loginLimiter');
+const { recordLoginFailure, recordLoginSuccess } = require('../middleware/rateLimiter');
 const SystemConfig = require('../models/SystemConfig');
 
 // Generate JWT Token
@@ -18,22 +18,25 @@ const generateToken = (id) => {
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
+    const clientIp = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 
     if (!email || !password) {
-      registerLoginFailure(req);
+      await recordLoginFailure(email || '', clientIp);
       return res.status(400).json({ success: false, message: 'Please provide email and password' });
     }
 
+    const normalizedEmail = email.trim().toLowerCase();
+
     // Check for user (and select password field explicitly)
-    const user = await User.findOne({ email, deletedAt: null }).select('+password');
+    const user = await User.findOne({ email: normalizedEmail, deletedAt: null }).select('+password');
 
     if (!user) {
-      registerLoginFailure(req);
+      await recordLoginFailure(normalizedEmail, clientIp);
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
     if (!user.active) {
-      registerLoginFailure(req);
+      await recordLoginFailure(normalizedEmail, clientIp);
       return res.status(401).json({ success: false, message: 'Account has been deactivated. Contact Admin.' });
     }
 
@@ -41,14 +44,14 @@ exports.login = async (req, res) => {
     const isMatch = await user.matchPassword(password);
 
     if (!isMatch) {
-      registerLoginFailure(req);
+      await recordLoginFailure(normalizedEmail, clientIp);
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
     // Log Activity
     await logActivity(user._id, 'LOGIN', 'User logged in successfully', req);
 
-    registerLoginSuccess(req);
+    await recordLoginSuccess(normalizedEmail, clientIp);
 
     res.status(200).json({
       success: true,

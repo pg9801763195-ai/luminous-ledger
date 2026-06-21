@@ -458,3 +458,45 @@ exports.deleteTenant = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// @desc    Get all active rate limit records
+// @route   GET /api/saas/rate-limits
+// @access  Private/SuperAdmin
+exports.getRateLimits = async (req, res) => {
+  try {
+    const RateLimit = require('../models/RateLimit');
+    const limits = await RateLimit.find({}).sort({ updatedAt: -1 });
+    res.status(200).json({ success: true, data: limits });
+  } catch (error) {
+    console.error('Error fetching rate limits:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Reset a specific rate limit (delete record)
+// @route   DELETE /api/saas/rate-limits/:id
+// @access  Private/SuperAdmin
+exports.deleteRateLimit = async (req, res) => {
+  try {
+    const RateLimit = require('../models/RateLimit');
+    const limit = await RateLimit.findById(req.params.id);
+    if (!limit) {
+      return res.status(404).json({ success: false, message: 'Rate limit record not found' });
+    }
+
+    await RateLimit.deleteOne({ _id: req.params.id });
+
+    // Log the administrative action
+    await logActivity(
+      req.user._id,
+      'RESET_RATE_LIMIT',
+      `SuperAdmin reset rate limit block for key: "${limit.key}"`,
+      req
+    );
+
+    res.status(200).json({ success: true, message: `Rate limit for "${limit.key}" has been reset successfully` });
+  } catch (error) {
+    console.error('Error resetting rate limit:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

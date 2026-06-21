@@ -9,7 +9,9 @@ const {
   getSystemLogs,
   getSystemAnalytics,
   getSystemConfig,
-  updateSystemConfig
+  updateSystemConfig,
+  getRateLimits,
+  deleteRateLimit
 } = require('../controllers/saasController');
 const { protect, checkSuperAdmin } = require('../middleware/auth');
 
@@ -37,5 +39,11 @@ router.route('/analytics')
 router.route('/config')
   .get(getSystemConfig)
   .put(updateSystemConfig);
+
+router.route('/rate-limits')
+  .get(getRateLimits);
+
+router.route('/rate-limits/:id')
+  .delete(deleteRateLimit);
 
 module.exports = router;

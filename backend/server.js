@@ -64,40 +64,14 @@ const mongoSanitize = (req, res, next) => {
 };
 app.use(mongoSanitize);
 
-// 3. Sliding-window Rate Limiter
-const rateLimitStore = new Map();
-const apiLimiter = (options) => {
-  const { windowMs, max, message } = options;
-  return (req, res, next) => {
-    const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-    const now = Date.now();
-    
-    if (!rateLimitStore.has(ip)) {
-      rateLimitStore.set(ip, { count: 1, resetTime: now + windowMs });
-      return next();
-    }
-    
-    const record = rateLimitStore.get(ip);
-    if (now > record.resetTime) {
-      rateLimitStore.set(ip, { count: 1, resetTime: now + windowMs });
-      return next();
-    }
-    
-    record.count += 1;
-    if (record.count > max) {
-      return res.status(429).json({
-        success: false,
-        message: message || 'Too many requests, please try again later.'
-      });
-    }
-    
-    next();
-  };
-};
+// 3. Rate Limiters
+const { apiRateLimiter, loginRateLimiter } = require('./middleware/rateLimiter');
 
-// Limit auth routes: block only after multiple failed login attempts
-const { loginRateLimiter } = require('./middleware/loginLimiter');
+// Limit auth routes: strict limit on login attempts
 app.use('/api/auth/login', loginRateLimiter);
+
+// Limit all other API routes
+app.use('/api', apiRateLimiter);
 
 // Basic Request logger
 app.use((req, res, next) => {

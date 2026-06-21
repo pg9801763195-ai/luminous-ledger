@@ -87,6 +87,12 @@ const SaaSAdmin = () => {
   const [logsSearch, setLogsSearch] = useState('');
   const [logsAction, setLogsAction] = useState('');
 
+  // Rate limits tab states
+  const [rateLimits, setRateLimits] = useState([]);
+  const [rateLimitsLoading, setRateLimitsLoading] = useState(true);
+  const [rateLimitsSearch, setRateLimitsSearch] = useState('');
+  const [resettingLimitId, setResettingLimitId] = useState(null);
+
   // ----------------------------------------------------
   // API Fetch Actions
   // ----------------------------------------------------
@@ -154,6 +160,37 @@ const SaaSAdmin = () => {
     }
   };
 
+  const fetchRateLimits = async () => {
+    try {
+      setRateLimitsLoading(true);
+      const res = await api.get('/saas/rate-limits');
+      if (res.data.success) {
+        setRateLimits(res.data.data);
+      }
+    } catch (error) {
+      console.error('Error loading active rate limits', error);
+    } finally {
+      setRateLimitsLoading(false);
+    }
+  };
+
+  const handleResetRateLimit = async (limitId, keyName) => {
+    if (window.confirm(`Are you sure you want to reset the rate limit/block for "${keyName}"?`)) {
+      try {
+        setResettingLimitId(limitId);
+        const res = await api.delete(`/saas/rate-limits/${limitId}`);
+        if (res.data.success) {
+          alert(res.data.message || 'Rate limit reset successfully');
+          fetchRateLimits();
+        }
+      } catch (error) {
+        alert(error.response?.data?.message || 'Failed to reset rate limit');
+      } finally {
+        setResettingLimitId(null);
+      }
+    }
+  };
+
   // Switch fetching depending on active tab
   useEffect(() => {
     if (activeTab === 'tenants') {
@@ -164,6 +201,8 @@ const SaaSAdmin = () => {
       fetchConfig();
     } else if (activeTab === 'logs') {
       fetchSystemLogs();
+    } else if (activeTab === 'ratelimits') {
+      fetchRateLimits();
     }
   }, [activeTab, logsPage, logsAction]);
 
@@ -394,6 +433,7 @@ const SaaSAdmin = () => {
           { id: 'announcement', label: 'System Announcement', icon: 'campaign' },
           { id: 'limits', label: 'Plan Limits Editor', icon: 'tune' },
           { id: 'logs', label: 'System Audit Logs', icon: 'gavel' },
+          { id: 'ratelimits', label: 'API Rate Limits', icon: 'shield_lock' },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -1050,6 +1090,124 @@ const SaaSAdmin = () => {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* ==================== TAB 6: API RATE LIMITS ==================== */}
+        {activeTab === 'ratelimits' && (
+          <div className="space-y-md mt-sm">
+            {/* Filter and refresh bar */}
+            <div className="glass-panel p-md rounded-xl flex flex-wrap items-center justify-between gap-md">
+              <div className="flex items-center gap-sm flex-grow max-w-sm">
+                <span className="material-symbols-outlined text-[#434656] text-[20px]">search</span>
+                <input
+                  type="text"
+                  placeholder="Search by target (email, IP, API)..."
+                  className="flex-grow h-9 px-3 border border-[#c3c5d9] bg-white rounded-lg outline-none focus:ring-2 focus:ring-[#0041c8]/20 focus:border-[#0041c8] text-xs"
+                  value={rateLimitsSearch}
+                  onChange={(e) => setRateLimitsSearch(e.target.value)}
+                />
+              </div>
+              <button
+                onClick={fetchRateLimits}
+                className="px-lg h-9 bg-[#0041c8] text-white rounded-lg text-xs font-semibold hover:opacity-90 active:scale-95 transition-all flex items-center gap-xs shadow-sm cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[16px]">refresh</span>
+                Refresh List
+              </button>
+            </div>
+
+            {/* List panel */}
+            <div className="glass-panel rounded-xl overflow-hidden shadow-sm flex flex-col justify-between min-h-[440px]">
+              <div className="overflow-x-auto flex-grow">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead className="bg-[#faf8ff] border-b border-[#c3c5d9]/30 h-11 uppercase tracking-wider text-[11px] font-bold text-[#434656]">
+                    <tr>
+                      <th className="px-lg">Rate Limit Target</th>
+                      <th className="px-lg">Limit Type</th>
+                      <th className="px-lg">Current Count</th>
+                      <th className="px-lg">Block Status</th>
+                      <th className="px-lg">Expires In</th>
+                      <th className="px-lg text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#c3c5d9]/25 text-[#131b2e] font-body-md">
+                    {rateLimitsLoading ? (
+                      <tr>
+                        <td colSpan="6" className="text-center py-xl">
+                          <span className="material-symbols-outlined text-[32px] text-[#0041c8] animate-spin">progress_activity</span>
+                        </td>
+                      </tr>
+                    ) : rateLimits.length === 0 ? (
+                      <tr>
+                        <td colSpan="6" className="p-4 text-center text-[#737688]">No rate limits or blocks currently active in the database.</td>
+                      </tr>
+                    ) : (
+                      rateLimits
+                        .filter(limit => 
+                          limit.key.toLowerCase().includes(rateLimitsSearch.toLowerCase())
+                        )
+                        .map((limit) => {
+                          const isBlocked = limit.key.startsWith('login:') 
+                            ? limit.points >= 5 
+                            : limit.points > 100;
+                          
+                          // Format key helper
+                          const formatKey = (key) => {
+                            if (key.startsWith('login:email:')) return `Email Attempt: ${key.replace('login:email:', '')}`;
+                            if (key.startsWith('login:ip:')) return `IP Login Attempt: ${key.replace('login:ip:', '')}`;
+                            if (key.startsWith('api:ip:')) return `General API Traffic (IP: ${key.replace('api:ip:', '')})`;
+                            return key;
+                          };
+
+                          const minsRemaining = Math.max(
+                            0,
+                            Math.ceil((new Date(limit.expireAt) - new Date()) / 1000 / 60)
+                          );
+
+                          return (
+                            <tr key={limit._id} className="hover:bg-[#faf8ff] transition-colors h-12">
+                              <td className="px-lg font-mono font-bold text-[#0041c8] text-sm">
+                                {formatKey(limit.key)}
+                              </td>
+                              <td className="px-lg">
+                                <span className="bg-[#eaedff] text-[#0041c8] font-mono text-[10px] font-bold px-2 py-0.5 rounded border border-[#0041c8]/10">
+                                  {limit.key.startsWith('login:') ? 'LOGIN ATTEMPT' : 'API LIMIT'}
+                                </span>
+                              </td>
+                              <td className="px-lg font-bold font-mono">
+                                {limit.points} attempts
+                              </td>
+                              <td className="px-lg">
+                                <span className={`px-sm py-0.5 rounded-full text-[10px] font-bold ${
+                                  isBlocked
+                                    ? 'bg-red-50 text-[#ba1a1a] border border-red-200 animate-pulse'
+                                    : 'bg-green-50 text-green-700 border border-green-200'
+                                }`}>
+                                  {isBlocked ? 'Blocked (Limit Crossed)' : 'Active (Under Limit)'}
+                                </span>
+                              </td>
+                              <td className="px-lg font-mono text-[#737688]">
+                                {minsRemaining > 0 ? `~${minsRemaining} minutes` : 'Expiring now'}
+                              </td>
+                              <td className="px-lg text-right">
+                                <button
+                                  onClick={() => handleResetRateLimit(limit._id, limit.key)}
+                                  disabled={resettingLimitId === limit._id}
+                                  className="px-md h-8 bg-[#ba1a1a] hover:bg-[#ba1a1a]/90 text-white rounded font-bold text-xs flex items-center gap-xs shadow-sm transition-all active:scale-95 disabled:opacity-50 inline-flex items-center cursor-pointer"
+                                >
+                                  <span className="material-symbols-outlined text-[16px]">lock_open</span>
+                                  {resettingLimitId === limit._id ? 'Resetting...' : 'Reset & Unblock'}
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}
